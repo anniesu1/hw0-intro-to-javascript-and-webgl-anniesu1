@@ -1,8 +1,9 @@
-import {vec3} from 'gl-matrix';
+import {vec3, vec4} from 'gl-matrix';
 import * as Stats from 'stats-js';
 import * as DAT from 'dat-gui';
 import Icosphere from './geometry/Icosphere';
 import Square from './geometry/Square';
+import Cube from './geometry/Cube';
 import OpenGLRenderer from './rendering/gl/OpenGLRenderer';
 import Camera from './Camera';
 import {setGL} from './globals';
@@ -11,12 +12,18 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
+  shape: 'cube',
   tesselations: 5,
-  'Load Scene': loadScene, // A function pointer, essentially
+  'load scene': loadScene, // A function pointer, essentially
+  red: 0,
+  green: 255, 
+  blue: 0,
+  shader: 'lambert'
 };
 
 let icosphere: Icosphere;
 let square: Square;
+let cube: Cube;
 let prevTesselations: number = 5;
 
 function loadScene() {
@@ -24,6 +31,8 @@ function loadScene() {
   icosphere.create();
   square = new Square(vec3.fromValues(0, 0, 0));
   square.create();
+  cube = new Cube(vec3.fromValues(0, 0, 0));
+  cube.create();
 }
 
 function main() {
@@ -37,8 +46,14 @@ function main() {
 
   // Add controls to the gui
   const gui = new DAT.GUI();
+  gui.add(controls, 'shape', [ 'cube', 'sphere', 'square']);
   gui.add(controls, 'tesselations', 0, 8).step(1);
-  gui.add(controls, 'Load Scene');
+  gui.add(controls, 'load scene');
+  gui.add(controls, 'red', 0, 255);
+  gui.add(controls, 'green', 0, 255);
+  gui.add(controls, 'blue', 0, 255);
+  gui.add(controls, 'shader', [ 'lambert', 'gradient' ]);
+  
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -64,22 +79,58 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/lambert-frag.glsl')),
   ]);
 
+  const custom = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/custom-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/custom-frag.glsl')),
+  ]);
+
   // This function will be called every frame
   function tick() {
+    
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
+
     if(controls.tesselations != prevTesselations)
     {
       prevTesselations = controls.tesselations;
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, lambert, [
-      icosphere,
-      // square,
-    ]);
+
+    // Update u_Color 
+    let newColor = vec4.fromValues(controls.red / 255.0, 
+      controls.green / 255.0, controls.blue / 255.0, 1);
+    lambert.setGeometryColor(newColor);
+
+    // Switch based on selected shader
+    let selectedShader: ShaderProgram;
+    if (controls.shader == 'lambert') {
+      selectedShader = lambert;
+    }
+    else if (controls.shader == 'gradient') {
+      selectedShader = custom;
+    }
+
+    // Switch based on selected shape
+    if (controls.shape == 'cube') {
+      renderer.render(camera, selectedShader, [
+        // icosphere,
+        // square,
+        cube
+      ]);
+    }
+    else if (controls.shape == 'sphere') {
+      renderer.render(camera, selectedShader, [
+        icosphere
+      ]);
+    }
+    else if (controls.shape == 'square') {
+      renderer.render(camera, selectedShader, [
+        square,
+      ]);
+    }
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
