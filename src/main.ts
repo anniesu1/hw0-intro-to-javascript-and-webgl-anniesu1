@@ -55,7 +55,7 @@ function main() {
   gui.add(controls, 'shader', [ 'lambert', 'gradient' ]);
   
 
-  // get canvas and webgl context
+  // Get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
   const gl = <WebGL2RenderingContext> canvas.getContext('webgl2');
   if (!gl) {
@@ -74,6 +74,7 @@ function main() {
   renderer.setClearColor(0.2, 0.2, 0.2, 1);
   gl.enable(gl.DEPTH_TEST);
 
+  // Initialize both lambert and custom shaders
   const lambert = new ShaderProgram([
     new Shader(gl.VERTEX_SHADER, require('./shaders/lambert-vert.glsl')),
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/lambert-frag.glsl')),
@@ -92,19 +93,18 @@ function main() {
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.clear();
 
-    if(controls.tesselations != prevTesselations)
-    {
+    if (controls.tesselations != prevTesselations) {
       prevTesselations = controls.tesselations;
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
 
-    // Update u_Color 
-    let newColor = vec4.fromValues(controls.red / 255.0, 
-      controls.green / 255.0, controls.blue / 255.0, 1);
+    // Pull colors from GUI controls and update u_Color of lambertian shader 
+    let newColor = vec4.fromValues(controls.red / 255.0, controls.green / 255.0, 
+                                   controls.blue / 255.0, 1);
     lambert.setGeometryColor(newColor);
 
-    // Switch based on selected shader
+    // Pull selected shader from GUI and set as selected
     let selectedShader: ShaderProgram;
     if (controls.shader == 'lambert') {
       selectedShader = lambert;
@@ -113,11 +113,9 @@ function main() {
       selectedShader = custom;
     }
 
-    // Switch based on selected shape
+    // Pull selected shape from GUI and render
     if (controls.shape == 'cube') {
       renderer.render(camera, selectedShader, [
-        // icosphere,
-        // square,
         cube
       ]);
     }
